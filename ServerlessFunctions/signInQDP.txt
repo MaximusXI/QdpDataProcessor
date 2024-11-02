@@ -1,0 +1,62 @@
+import json
+import boto3
+from botocore.exceptions import ClientError
+
+# Initialize Cognito client
+cognito = boto3.client('cognito-idp')
+
+#Cognito User Pool details
+CLIENT_ID = 'APP_CLIENT_FROM_AWS_COGNITO'  # app client ID
+
+def lambda_handler(event, context):
+    try:
+        # Get the username and password from the event
+        username = event['username']
+        password = event['password']
+        
+        # Sign in the user
+        response = cognito.initiate_auth(
+            ClientId=CLIENT_ID,
+            AuthFlow='USER_PASSWORD_AUTH',
+            AuthParameters={
+                'USERNAME': username,
+                'PASSWORD': password
+            }
+        )
+        
+        # Retrieve tokens from the response
+        id_token = response['AuthenticationResult']['IdToken']
+        access_token = response['AuthenticationResult']['AccessToken']
+        refresh_token = response['AuthenticationResult']['RefreshToken']
+        
+        groups_response = cognito.admin_list_groups_for_user(
+            UserPoolId='THE_USER_POOL_ID_FROM_COGNITO',
+            Username=username
+        )
+        
+        #Below to return all the groups for a user 
+        #groups = [group['GroupName'] for group in groups_response['Groups']]
+        
+        #But We allow only only one role for the user so only returning the 1st entry
+        first_group = groups_response['Groups'][0]['GroupName'] if groups_response['Groups'] else None
+    
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'message': 'User sign-in successful!',
+                'id_token': id_token,
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'role': first_group
+            })
+        }
+
+    except ClientError as e:
+        # Handle errors (e.g., invalid credentials)
+        return {
+            'statusCode': 400,
+            'body': json.dumps({
+                'message': 'User sign-in failed!',
+                'error': str(e)
+            })
+        }

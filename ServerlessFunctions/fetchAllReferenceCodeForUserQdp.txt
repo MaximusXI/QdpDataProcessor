@@ -1,0 +1,43 @@
+import AWS from 'aws-sdk';
+import jwt from 'jsonwebtoken'
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+export const handler = async (event) => {
+  const authHeader = event.params.header.Authorization;
+  const decodedToken = jwt.decode(authHeader);
+  const senderEmail = decodedToken.email;
+  
+   const params = {
+    TableName: 'supportQueries',
+    IndexName: 'senderId-index',  // Use the GSI on userId
+    KeyConditionExpression: 'senderId = :senderIdVal',
+    ExpressionAttributeValues: {
+      ':senderIdVal': senderEmail,
+    },
+    ProjectionExpression: 'referenceCode',  // Retrieve only the referenceCode field
+  };
+  
+  try {
+    const data = await dynamoDb.query(params).promise();
+    
+    if (data.Items.length === 0) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: 'No entries found for the given user ID' }),
+      };
+    }
+
+    // Use a Set to get unique reference codes
+    const uniqueReferenceCodes = [...new Set(data.Items.map(item => item.referenceCode))];
+    return {
+      statusCode: 200,
+      body: JSON.stringify(uniqueReferenceCodes),
+    };
+  } catch (error) {
+    console.error('Error fetching entries:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: 'Error fetching entries for user ID' }),
+    };
+  }
+};

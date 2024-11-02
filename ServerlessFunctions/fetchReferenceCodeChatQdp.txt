@@ -1,0 +1,45 @@
+import AWS from 'aws-sdk';
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+export const handler = async (event) => {
+  const referenceCode = event.referenceCode;
+  if (!referenceCode) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: 'Reference Code is required' }),
+    };
+  }
+  
+  const params = {
+    TableName: 'supportQueries',
+    KeyConditionExpression: 'referenceCode = :refCode',
+    ExpressionAttributeValues: {
+      ':refCode': referenceCode,
+    },
+    // Sorts items in ascending order by timestamp
+    ScanIndexForward: true,
+  };
+  
+    try {
+    const data = await dynamoDb.query(params).promise();
+    
+    if (data.Items.length === 0) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ message: 'No entries found for the given reference code' }),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(data.Items),
+    };
+  } catch (error) {
+    console.error('Error fetching entries:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: 'Error fetching entries for reference code' }),
+    };
+  }
+
+};

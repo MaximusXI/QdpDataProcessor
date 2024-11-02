@@ -1,0 +1,34 @@
+import AWS from 'aws-sdk'; // AWS SDK import
+const dynamodb = new AWS.DynamoDB.DocumentClient();
+const ApiGatewayManagementApi = new AWS.ApiGatewayManagementApi({ endpoint: 'ID_FROM_API_GW_WS.execute-api.us-east-1.amazonaws.com/production/' });
+
+export const handler = async (event) => {
+
+  for (const record of event.Records) {
+    if (record.eventName === 'INSERT') {
+      const newMessage = AWS.DynamoDB.Converter.unmarshall(record.dynamodb.NewImage);
+      //Finally I understood that only connection to the receipient is required not to both!
+      const recipientId = newMessage.recipientId;  // Extract userId from the new entry
+      
+      try {
+        // Get the WebSocket connection for this user
+        const connectionData = await dynamodb.get({
+          TableName: 'userConnections',
+          Key: { email: recipientId}  // Fetch the connection for the specific user
+        }).promise();
+        
+        if (connectionData.Item) {
+          const connectionId = connectionData.Item.connectionId;
+          // Send the new message only to the user's WebSocket connection
+          await ApiGatewayManagementApi.postToConnection({
+            ConnectionId: connectionId,
+            Data: JSON.stringify({ action: 'newMessage', data: newMessage })
+          }).promise();
+        }
+        
+      } catch (error) {
+        console.error('Error sending message to user:', error);
+      }
+    }
+  }
+};

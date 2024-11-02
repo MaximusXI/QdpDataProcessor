@@ -1,0 +1,102 @@
+import json
+import boto3
+import uuid
+from botocore.exceptions import ClientError
+from datetime import datetime
+
+cognito = boto3.client('cognito-idp')
+dynamodb = boto3.resource('dynamodb')
+
+# Replace with your Cognito User Pool details
+USER_POOL_ID = 'USER_POOL_FROM_AWS_COGNITO'
+CLIENT_ID = 'APP_CLIENT_ID_FROM_APP_INTEGRATION_COGNITO'
+DYNAMO_TABLE_NAME = 'userDetailQdp'
+
+def lambda_handler(event, context):
+    form_data = event.get('formData', {})
+    email = form_data.get('email')
+    password = form_data.get('password')
+    address = form_data.get('address')
+    birthdate = form_data.get('birthdate')
+    gender = form_data.get('gender')
+    phone_number = form_data.get('phone_number')
+    name = form_data.get('name')
+    security_question = form_data.get('security_question')
+    security_answer = form_data.get('security_answer')
+    role = form_data.get('role')
+    
+    username = str(uuid.uuid4())
+    try:
+        # Sign up the user using Cognito
+        response = cognito.sign_up(
+            ClientId=CLIENT_ID,
+            Username=email,
+            Password=password,
+            UserAttributes=[
+                {
+                    'Name': 'email',
+                    'Value': email
+                },
+                #Add any custom attributes if necessary
+                {
+                    'Name': 'address',
+                    'Value': address
+                },
+                {
+                    'Name': 'birthdate',
+                    'Value': birthdate
+                },
+                {
+                    'Name': 'gender',
+                    'Value': gender
+                },
+                {
+                    'Name': 'phone_number',
+                    'Value': phone_number
+                },
+                {
+                    'Name': 'name',
+                    'Value': name
+                }
+            ]
+        )
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            table = dynamodb.Table(DYNAMO_TABLE_NAME)
+            table.put_item(
+                Item={
+                    'userId': response['UserSub'],
+                    'securityQuestion': security_question,
+                    'securityAnswer': security_answer,
+                    'registeredOn': datetime.utcnow().isoformat(),
+                    'lastSignInDate': None,
+                    'allowedProcessing': ["processing1", "processing2", "processing3"],
+                    'email':email
+                    #'isActive': False
+                }
+            )
+            
+            #Adding the user to Cognito group based on role
+            group_name = 'customer' if role == 'customer' else 'admin'
+            cognito.admin_add_user_to_group(
+                UserPoolId=USER_POOL_ID,
+                Username=email,
+                GroupName=group_name
+            )
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'message': 'User signup successful!',
+                'user_confirmed': response['UserConfirmed'],
+                'code_delivery_details': response['CodeDeliveryDetails']
+            })
+        }
+        
+    except ClientError as e:
+        # Handle error and return message to the user
+        return {
+            'statusCode': 400,
+            'body': json.dumps({
+                'message': 'User signup failed!',
+                'error': str(e)
+            })
+        }

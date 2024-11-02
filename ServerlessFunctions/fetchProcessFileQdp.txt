@@ -1,0 +1,39 @@
+import jwt from 'jsonwebtoken'
+import AWS from 'aws-sdk';
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+export const handler = async (event) => {
+  try{
+    const authHeader = event.params.header.Authorization;
+    const decodedToken = jwt.decode(authHeader);
+    const userSub = decodedToken.sub; //getting the 'sub' field from the token
+    
+    const params = {
+              TableName: 'processing',
+              IndexName: 'userId-index', // Using the GSI
+              KeyConditionExpression: 'userId = :userId', // userId is the key in GSI
+              ExpressionAttributeValues: {
+                  ':userId': userSub
+              }
+          };
+    
+    const result = await dynamoDb.query(params).promise();
+    return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Records fetched successfully!',
+                data: result.Items // Items returned from DynamoDB
+            }),
+        };
+  }catch(error){
+    console.error('Error querying DynamoDB:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                message: 'Error fetching records',
+                error: error.message
+            }),
+        };
+    
+  }
+};

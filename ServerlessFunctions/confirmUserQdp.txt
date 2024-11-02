@@ -1,0 +1,67 @@
+import json
+import boto3
+from botocore.exceptions import ClientError
+
+# Initialize Cognito client
+cognito = boto3.client('cognito-idp')
+
+#Cognito User Pool details
+CLIENT_ID = 'CLIENT_ID_GOES_HERE'
+
+
+def lambda_handler(event, context):
+    # TODO implement
+    try:
+        # Get the confirmation code and username from the event
+        confirmation_code = event.get('body-json').get('confirmation_code')
+        email = event.get('body-json').get('email')
+        user = find_user_by_email(email)
+        if not user:
+            return {
+                'statusCode': 404,
+                'body': json.dumps({
+                    'message': 'User with this email not found!'
+                })
+            }
+
+        # Extract the username from the found user
+        username = user['Username']
+        # Confirm the user's sign-up using the code
+        response = cognito.confirm_sign_up(
+            ClientId=CLIENT_ID,
+            Username=username,
+            ConfirmationCode=confirmation_code
+        )
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'message': 'User confirmation successful!',
+                'response': response
+            })
+        }
+
+    except ClientError as e:
+        # Handle errors (e.g., invalid code, user already confirmed)
+        return {
+            'statusCode': 400,
+            'body': json.dumps({
+                'message': 'User confirmation failed!',
+                'error': str(e)
+            })
+        }
+        
+        
+def find_user_by_email(email):
+    """Search for a user by their email address."""
+    try:
+        response = cognito.list_users(
+            UserPoolId="us-east-1_afnCFtddL",
+            Filter=f'email = "{email}"'
+        )
+        users = response.get('Users', [])
+        if users:
+            return users[0]  # Return the first matching user
+        return None
+    except ClientError as e:
+        print("Error finding user by email:", e)
+        return None

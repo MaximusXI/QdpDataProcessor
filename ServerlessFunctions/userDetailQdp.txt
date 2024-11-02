@@ -1,0 +1,53 @@
+import AWS from 'aws-sdk';
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const cognito = new AWS.CognitoIdentityServiceProvider();
+
+const TABLE_NAME = 'userDetailQdp';
+const USER_POOL_ID = 'USER_POOL_ID_FROM_COGNITO';
+
+export const handler = async (event) => {
+  const email = event.params.querystring.email
+  try{
+     const cognitoParams = {
+            UserPoolId: USER_POOL_ID,
+            Filter: `email = "${email}"`
+        };
+        
+     const cognitoResponse = await cognito.listUsers(cognitoParams).promise();
+      if (cognitoResponse.Users.length === 0) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: "No user found in Cognito for the specified email." })
+            };
+        }
+      const userId = cognitoResponse.Users[0].Username;  // Cognito's unique user ID
+      
+      const dynamoParams = {
+            TableName: TABLE_NAME,
+            Key: { userId },
+            ProjectionExpression: 'userId,allowedProcessing,email,registeredOn,securityQuestion'
+        };
+      
+      const data = await dynamoDb.get(dynamoParams).promise();
+      if (!data.Item) {
+            return {
+                statusCode: 404,
+                body: JSON.stringify({ message: "No record found in DynamoDB for the specified userId." })
+            };
+        }
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ record: data.Item })
+        };
+        
+  }catch(error){
+    return {
+            statusCode: 500,
+            body: JSON.stringify({
+                message: "Failed to retrieve record.",
+                error: error.message
+            })
+        };
+  }
+};

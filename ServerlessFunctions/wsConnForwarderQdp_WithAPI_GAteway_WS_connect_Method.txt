@@ -1,0 +1,23 @@
+import AWS from 'aws-sdk'; // AWS SDK import
+const dynamodb = new AWS.DynamoDB.DocumentClient();
+export const handler = async (event) => {
+  const connectionId = event.requestContext.connectionId;
+  const email = event.queryStringParameters.userId;  // Pass user email during connection
+
+  await dynamodb.put({
+    TableName: 'userConnections',
+    Item: {
+      email: email,
+      connectionId: connectionId,
+    },// The condition expression ensures the item is overwritten if it already exists
+    ConditionExpression: 'attribute_not_exists(email) OR email = :email',
+    ExpressionAttributeValues: {
+      ':email': email,
+    }
+  }).promise();
+
+  return { statusCode: 200, body: 'Connected' };
+};
+
+
+

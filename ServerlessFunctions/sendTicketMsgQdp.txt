@@ -1,0 +1,64 @@
+import AWS from 'aws-sdk';
+import jwt from 'jsonwebtoken'
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+
+export const handler = async (event) => {
+  const referenceCode = event['body-json'].referenceCode;
+  const message = event['body-json'].message;
+  const timestamp = Date.now();
+  const authHeader = event.params.header.Authorization;
+  const decodedToken = jwt.decode(authHeader);
+  const senderEmail = decodedToken.email;
+  let recipientId;
+  const checkParams = {
+    TableName: 'supportQueries',
+    KeyConditionExpression: 'referenceCode = :referenceCodeVal',
+    ExpressionAttributeValues: {
+      ':referenceCodeVal': referenceCode,
+    },
+    Limit: 1
+  };
+  
+  try{
+    const recordForReferenceCode = await dynamoDb.query(checkParams).promise();
+    if (recordForReferenceCode.Items.length === 0) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: 'No chat found for the given reference code' }),
+      };
+    }
+    if(senderEmail == recordForReferenceCode.Items[0].userId){
+      recipientId = recordForReferenceCode.Items[0].recipientId;
+    }else{
+      recipientId = recordForReferenceCode.Items[0].userId;
+    }
+    
+    const params = {
+      TableName: 'supportQueries',
+      Item: {
+        referenceCode: referenceCode,
+        timestamp: timestamp,
+        message: message,
+        userId: recordForReferenceCode.Items[0].userId,
+        senderId: senderEmail,
+        recipientId: recipientId
+      }
+    };
+    
+    await dynamoDb.put(params).promise();
+    
+    const response = {
+      statusCode: 200,
+      body: JSON.stringify('Message Send Successfully!'),
+    };
+    return response;
+    
+  }catch(error){
+      console.error('Error publishing message:', error);
+      const response = {
+      statusCode: 500,
+      body: JSON.stringify('Something went wrong'),
+    };
+    return response;
+  }
+};
