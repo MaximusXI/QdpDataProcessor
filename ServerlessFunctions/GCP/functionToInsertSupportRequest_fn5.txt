@@ -1,0 +1,95 @@
+const functions = require('@google-cloud/functions-framework');
+const AWS = require('aws-sdk');
+
+AWS.config.update({
+  region: 'us-east-1', // Replace with your Cognito user pool's region
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Store securely in environment variables
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY, // Store securely in environment variables
+  sessionToken: process.env.SESSION_TOKEN
+});
+const dynamoDb = new AWS.DynamoDB.DocumentClient();
+const USER_POOL_ID = 'us-east-1_afnCFtddL'; // The Cognito User Pool ID
+const ADMIN_GROUP_NAME = 'admin';
+// Initialize the CognitoIdentityServiceProvider
+const cognito = new AWS.CognitoIdentityServiceProvider();
+// Register a CloudEvent callback with the Functions Framework that will
+// be executed when the Pub/Sub trigger topic receives a message.
+functions.cloudEvent('helloPubSub',async (cloudEvent) => {
+  // The Pub/Sub message is passed as the CloudEvent's data payload.
+  const base64Data = cloudEvent.data.message.data;
+  const message = base64Data ? JSON.parse(Buffer.from(base64Data, 'base64').toString()) : {};
+  console.log('Received message:', message);
+  // Validate message format
+   if (!message.referenceCode || !message.message || !message.userId) {
+      console.error('Invalid message format');
+      return;
+   }
+
+    
+
+    const adminUsers = await getAdminUsers();
+     if (adminUsers.length === 0) {
+      console.error('No admin users found.');
+      return;
+    }
+    console.log(adminUsers);
+    const randomAdmin = adminUsers[Math.floor(Math.random() * adminUsers.length)];
+    console.log(`Randomly selected admin: ${randomAdmin.Username}`);
+    console.log(randomAdmin);
+    const adminEmail = randomAdmin.Attributes.find(attr => attr.Name === 'email').Value;
+    console.log(adminEmail);
+    
+   const params = {
+      TableName: 'supportQueries',
+      Item: {
+        referenceCode: message.referenceCode,
+        timestamp: Date.now(),
+        message: message.message,
+        userId: message.userId,
+        senderId: message.userId,
+        recipientId: adminEmail
+      }
+    };
+
+    await dynamoDb.put(params).promise();
+    console.log('Record inserted into DynamoDB:', params.Item);
+
+    //Inserting one more record for the Admin auto reply and get an admin as sender Entry in the table
+    //Because we have added GSI on senderId so this entry will help in fethcing referenceCode for admin
+    const params2 = {
+      TableName: 'supportQueries',
+      Item: {
+        referenceCode: message.referenceCode,
+        timestamp: Date.now(),
+        message: 'Hi Your request will be processed shortly',
+        userId: message.userId,
+        senderId: adminEmail,
+        recipientId: message.userId
+      }
+    };
+    await dynamoDb.put(params2).promise();
+    console.log('Record inserted for the admin into DynamoDB:', params2.Item);
+//   const name = base64name
+//     ? Buffer.from(base64name, 'base64').toString()
+//     : 'World';
+
+//   console.log(`Hello, ${name}!`);
+});
+
+async function getAdminUsers() {
+  const params = {
+    UserPoolId: USER_POOL_ID,
+    GroupName: ADMIN_GROUP_NAME, // Fetch users from admin group
+  };
+
+  const adminUsers = [];
+  let response;
+
+  do {
+    response = await cognito.listUsersInGroup(params).promise();
+    adminUsers.push(...response.Users);
+    params.NextToken = response.NextToken;
+  } while (response.NextToken);
+
+  return adminUsers;
+}

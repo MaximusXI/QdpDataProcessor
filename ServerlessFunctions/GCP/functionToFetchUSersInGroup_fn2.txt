@@ -1,0 +1,51 @@
+const functions = require('@google-cloud/functions-framework');
+const AWS = require('aws-sdk');
+
+// Configure AWS SDK with region and credentials (these should be stored securely)
+AWS.config.update({
+  region: 'us-east-1', // Replace with your Cognito user pool's region
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Store securely in environment variables
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY, // Store securely in environment variables
+  sessionToken: process.env.SESSION_TOKEN
+});
+
+// Initialize the CognitoIdentityServiceProvider
+const cognito = new AWS.CognitoIdentityServiceProvider();
+const USER_POOL_ID = 'us-east-1_afnCFtddL'; // Replace with your Cognito User Pool ID
+const ADMIN_GROUP_NAME = 'admin';
+
+// functions.http('helloHttp', (req, res) => {
+//   res.send(`Hello ${req.query.name || req.body.name || 'World'}!`);
+// });
+exports.getUserFromCognito = async (req, res) => {
+  try {
+   
+    const adminUsers = await getAdminUsers();
+
+    res.status(200).json({
+      message: 'Admin Users details retrieved successfully',
+      user: adminUsers
+    });
+  } catch (error) {
+    console.error('Error retrieving user from Cognito:', error);
+    res.status(500).json({ message: 'Error retrieving user from Cognito', error });
+  }
+};
+
+async function getAdminUsers() {
+  const params = {
+    UserPoolId: USER_POOL_ID,
+    GroupName: ADMIN_GROUP_NAME, // Fetch users from admin group
+  };
+
+  const adminUsers = [];
+  let response;
+
+  do {
+    response = await cognito.listUsersInGroup(params).promise();
+    adminUsers.push(...response.Users);
+    params.NextToken = response.NextToken;
+  } while (response.NextToken);
+
+  return adminUsers;
+}
