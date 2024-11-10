@@ -1,3 +1,5 @@
+# Below function handled the Sign-up request for the new users
+# Also it adds the user in the respective groups in the cognito user-pool based on the role selected during the sign-up page
 import json
 import boto3
 import uuid
@@ -7,12 +9,17 @@ from datetime import datetime
 cognito = boto3.client('cognito-idp')
 dynamodb = boto3.resource('dynamodb')
 
-# Replace with your Cognito User Pool details
-USER_POOL_ID = 'USER_POOL_FROM_AWS_COGNITO'
-CLIENT_ID = 'APP_CLIENT_ID_FROM_APP_INTEGRATION_COGNITO'
+#Cognito User Pool details
+USER_POOL_ID = 'us-east-1_POOL_ID'
+CLIENT_ID = 'CLIENT_ID'
 DYNAMO_TABLE_NAME = 'userDetailQdp'
 
 def lambda_handler(event, context):
+    print('The event is:')
+    print(event)
+    print('event ends')
+    
+    # Extracting all the received data from the form
     form_data = event.get('formData', {})
     email = form_data.get('email')
     password = form_data.get('password')
@@ -25,7 +32,6 @@ def lambda_handler(event, context):
     security_answer = form_data.get('security_answer')
     role = form_data.get('role')
     
-    username = str(uuid.uuid4())
     try:
         # Sign up the user using Cognito
         response = cognito.sign_up(
@@ -37,7 +43,7 @@ def lambda_handler(event, context):
                     'Name': 'email',
                     'Value': email
                 },
-                #Add any custom attributes if necessary
+                #Adding the custom attributes necessary
                 {
                     'Name': 'address',
                     'Value': address
@@ -60,6 +66,10 @@ def lambda_handler(event, context):
                 }
             ]
         )
+        print("The response from cognito is")
+        print(response)
+        
+        # Populating an additional helper table which maintain the additional user info
         if response['ResponseMetadata']['HTTPStatusCode'] == 200:
             table = dynamodb.Table(DYNAMO_TABLE_NAME)
             table.put_item(
@@ -68,10 +78,11 @@ def lambda_handler(event, context):
                     'securityQuestion': security_question,
                     'securityAnswer': security_answer,
                     'registeredOn': datetime.utcnow().isoformat(),
-                    'lastSignInDate': None,
-                    'allowedProcessing': ["processing1", "processing2", "processing3"],
-                    'email':email
-                    #'isActive': False
+                    'lastSignInDate': None,                          # For now not entering this value
+                    'allowedProcessing': ["processing1", "processing2", "processing3"],   #For now assuming all the processing are allowed for the user
+                    'email':email,
+                    'role':role
+                    #'isActive': False             # Needs discussion but can be controlled here
                 }
             )
             
@@ -90,7 +101,6 @@ def lambda_handler(event, context):
                 'code_delivery_details': response['CodeDeliveryDetails']
             })
         }
-        
     except ClientError as e:
         # Handle error and return message to the user
         return {

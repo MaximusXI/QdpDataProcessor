@@ -1,0 +1,50 @@
+// AWS Sdk dependency is required for the below AWS lambda function
+// The below function is triggered when a new entry is inserted in the DynamoDb table supportQueries(has streams enabled)
+// The function uses the websockets API to publish the newly received message content to the subscribed client of the websocket API
+// Thus by using the DynamoDb streams and the API gateway configured with websocket type it provides real-time communication betweent the registered users and QDP Agents
+
+import AWS from 'aws-sdk'; // AWS SDK import
+const dynamodb = new AWS.DynamoDB.DocumentClient();
+// The configured API gateway with the websocket is used here
+const ApiGatewayManagementApi = new AWS.ApiGatewayManagementApi({ endpoint: 'yo1to9o3v4.execute-api.us-east-1.amazonaws.com/production/' });
+
+export const handler = async (event) => {
+  console.log('The event is:');
+  console.log(event);
+  
+  for (const record of event.Records) {
+    if (record.eventName === 'INSERT') {
+      const newMessage = AWS.DynamoDB.Converter.unmarshall(record.dynamodb.NewImage);
+      console.log('The new message is:');
+      console.log(newMessage);
+      //Finally it is understood that only connection to the receipient is required not to both!
+      const recipientId = newMessage.recipientId;  // Extract userId from the new entry
+
+      //Note:: The connectionId for the users are stored in the userConnections table which are used while publishing the messages
+      //       So for respective receiver which is either the registered user or an agent if they have their connectionId 
+      //       present in the userConnections table they will receive the real-time messages
+      try {
+        // Get the WebSocket connection for this user
+        const connectionData = await dynamodb.get({
+          TableName: 'userConnections',
+          Key: { email: recipientId}  // Fetch the connection for the specific user
+        }).promise();
+        console.log('The connectionData is:');
+        console.log(connectionData);
+        
+        if (connectionData.Item) {
+          const connectionId = connectionData.Item.connectionId;
+          console.log('The connection Id is:'+connectionId);
+          // Send the new message only to the user's WebSocket connection
+          await ApiGatewayManagementApi.postToConnection({
+            ConnectionId: connectionId,
+            Data: JSON.stringify({ action: 'newMessage', data: newMessage })
+          }).promise();
+        }
+        
+      } catch (error) {
+        console.error('Error sending message to user:', error);
+      }
+    }
+  }
+};

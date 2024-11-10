@@ -1,8 +1,15 @@
+// AWS Sdk dependency is required for the below AWS lambda function
+// The below function fetches all the conversation history for a particular referenceCode between registered user and QDP agent
 import AWS from 'aws-sdk';
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 export const handler = async (event) => {
+  console.log('The event is');
+  console.log(event);
+  // Getting the reference Code
   const referenceCode = event.referenceCode;
+  
+  // If no referenceCode received in the request throw exception
   if (!referenceCode) {
     return {
       statusCode: 400,
@@ -10,6 +17,7 @@ export const handler = async (event) => {
     };
   }
   
+  // Preparing the query to fetch the conversation history for a received reference code
   const params = {
     TableName: 'supportQueries',
     KeyConditionExpression: 'referenceCode = :refCode',
@@ -22,24 +30,24 @@ export const handler = async (event) => {
   
     try {
     const data = await dynamoDb.query(params).promise();
-    
+    // If no conversation history is found
     if (data.Items.length === 0) {
       return {
         statusCode: 404,
         body: JSON.stringify({ message: 'No entries found for the given reference code' }),
       };
     }
-
+    // If the conversation history is found then return the complete conversation list
     return {
       statusCode: 200,
       body: JSON.stringify(data.Items),
     };
   } catch (error) {
+    // If something went wrong then catch the exception
     console.error('Error fetching entries:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ message: 'Error fetching entries for reference code' }),
     };
   }
-
 };

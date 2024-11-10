@@ -1,13 +1,20 @@
+// AWS Sdk,jsonwebtoken are dependencies are required for the below AWS lambda function
+// The below AWS lambda function returns all the processing for a particular user
 import jwt from 'jsonwebtoken'
 import AWS from 'aws-sdk';
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 export const handler = async (event) => {
   try{
+    
+    console.log('event is');
+    console.log(event);
     const authHeader = event.params.header.Authorization;
+
     const decodedToken = jwt.decode(authHeader);
     const userSub = decodedToken.sub; //getting the 'sub' field from the token
     
+    // Preparing the query on the processing table where referenceId or referenceCode is partition key and the userId is GSI
     const params = {
               TableName: 'processing',
               IndexName: 'userId-index', // Using the GSI
@@ -18,6 +25,7 @@ export const handler = async (event) => {
           };
     
     const result = await dynamoDb.query(params).promise();
+    console.log('DynamoDB query result:', result);
     return {
             statusCode: 200,
             body: JSON.stringify({
@@ -26,6 +34,7 @@ export const handler = async (event) => {
             }),
         };
   }catch(error){
+    // If any error occurred then returning 500 
     console.error('Error querying DynamoDB:', error);
         return {
             statusCode: 500,

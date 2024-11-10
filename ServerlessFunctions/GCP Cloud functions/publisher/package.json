@@ -1,0 +1,9 @@
+{
+    "dependencies": {
+      "@google-cloud/functions-framework": "^3.0.0",
+      "@google-cloud/pubsub": "^4.7.2",
+      "aws-sdk": "^2.1691.0",
+       "jsonwebtoken": "^9.0.2"
+    }
+  }
+  

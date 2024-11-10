@@ -1,9 +1,18 @@
+// AWS Sdk dependency is required for the below AWS lambda function
+// The below function inserts the connectionId for the user in the userConnections table
+// If there is already an entry it updates that existing entry
+
 import AWS from 'aws-sdk'; // AWS SDK import
 const dynamodb = new AWS.DynamoDB.DocumentClient();
 export const handler = async (event) => {
+  console.log('The event is:'); 
+  console.log(event);
+  // Fetching the connectionId from the request
   const connectionId = event.requestContext.connectionId;
-  const email = event.queryStringParameters.userId;  // Pass user email during connection
+  // Fetching the emailId from the params
+  const email = event.queryStringParameters.userId;  
 
+  // Inserting or updating the connectionId in the userConnections table
   await dynamodb.put({
     TableName: 'userConnections',
     Item: {
@@ -18,6 +27,7 @@ export const handler = async (event) => {
 
   return { statusCode: 200, body: 'Connected' };
 };
+
 
 
 

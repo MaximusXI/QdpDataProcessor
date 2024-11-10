@@ -1,11 +1,17 @@
+// AWS Sdk dependency is required for the below AWS lambda function
+// The below function performs the verification of the security answer submitted by the user during sign-In stage
 import AWS from 'aws-sdk';
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const cognito = new AWS.CognitoIdentityServiceProvider();
 
 const TABLE_NAME = 'userDetailQdp';
-const USER_POOL_ID = 'us-east-1_afnCFtddL';
+const USER_POOL_ID = 'us-east-1_POOL_ID';
 
 export const handler = async (event) => {
+  console.log('event is:')
+  console.log(event);
+  
+  //Fetching the email and answer received in the request body
   const email = event['body-json'].email;
   const answer = event['body-json'].answer;
   
@@ -15,6 +21,7 @@ export const handler = async (event) => {
             Filter: `email = "${email}"`
         };
         
+     // Checking if the user is present in the Cognito user pool    
      const cognitoResponse = await cognito.listUsers(cognitoParams).promise();
       if (cognitoResponse.Users.length === 0) {
             return {
@@ -22,8 +29,13 @@ export const handler = async (event) => {
                 body: JSON.stringify({ message: "No user found in Cognito for the specified email." })
             };
         }
-      const userId = cognitoResponse.Users[0].Username;  // Cognito's unique user ID
+        
+      // Cognito's unique user ID    
+      const userId = cognitoResponse.Users[0].Username;  
+      console.log('The cognito user Id is:')
+      console.log(userId)
       
+      // Preparing the query to fetch the details of the user from the userDetailQdp Dynamo table
       const dynamoParams = {
             TableName: TABLE_NAME,
             Key: { userId },
@@ -37,12 +49,19 @@ export const handler = async (event) => {
                 body: JSON.stringify({ message: "No record found in DynamoDB for the specified userId." })
             };
         }
+        
+        console.log('Data is:')
+        console.log(data)
+        
+        //Checking if the answer received is matching with that in the user's records
         if(answer == data.Item.securityAnswer){
             return {
               statusCode: 200,
               body: JSON.stringify({message: "Answer matched successfully."})
           };
         }else{
+            
+          // If the answer does not match return error
           return {
             statusCode: 400,
             body: JSON.stringify({

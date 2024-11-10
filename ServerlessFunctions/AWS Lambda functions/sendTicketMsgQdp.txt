@@ -1,14 +1,31 @@
+// AWS Sdk,jsonwebtoken dependencies are required for the below AWS lambda function
+// The below AWS lambda function is responsible for the follow-up message conversations for a support request
+
 import AWS from 'aws-sdk';
 import jwt from 'jsonwebtoken'
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 export const handler = async (event) => {
+  console.log('event is');
+  console.log(event);
+  
+  // Fetching the referenceCode form the request
   const referenceCode = event['body-json'].referenceCode;
+  //Fetching the message from the request
   const message = event['body-json'].message;
+  console.log('ReferenceCode is ');
+  console.log(referenceCode);
+  
   const timestamp = Date.now();
   const authHeader = event.params.header.Authorization;
+
+  // Fetching the sender's email from the token received
   const decodedToken = jwt.decode(authHeader);
   const senderEmail = decodedToken.email;
+
+  // Getting the recepient details from the supportQueries table
+  // If the sender is registered user then finding the assigned Qdp agent
+  // If the sender is the Qdp agent then finding the user who submitted the support request
   let recipientId;
   const checkParams = {
     TableName: 'supportQueries',
@@ -21,18 +38,29 @@ export const handler = async (event) => {
   
   try{
     const recordForReferenceCode = await dynamoDb.query(checkParams).promise();
+    console.log(recordForReferenceCode);
+    
+    // Returning error if there is not conversation present for this reference Code
     if (recordForReferenceCode.Items.length === 0) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ message: 'No chat found for the given reference code' }),
+        body: JSON.stringify({ message: 'No conversation found for the given reference code' }),
       };
     }
+    console.log(recordForReferenceCode);
+    
+    // Setting the sender and receiver based on the fetched details
     if(senderEmail == recordForReferenceCode.Items[0].userId){
+      //If the sender is registered user then recepient is agent
       recipientId = recordForReferenceCode.Items[0].recipientId;
     }else{
+      //If the sender is an agent then the receiver is the registered user
       recipientId = recordForReferenceCode.Items[0].userId;
     }
     
+    // Inserting the entry in the supportQueries table which maintains the entire conversation
+    // Note:- Below table has streams enable and another Lambda function subscribed to the event in that table
+    // So that another function will publish the new messages to the respective subscribed users for that conversation
     const params = {
       TableName: 'supportQueries',
       Item: {
@@ -46,6 +74,7 @@ export const handler = async (event) => {
     };
     
     await dynamoDb.put(params).promise();
+    console.log('Record inserted into DynamoDB:', params.Item);
     
     const response = {
       statusCode: 200,

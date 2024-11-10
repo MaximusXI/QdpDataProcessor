@@ -1,34 +1,47 @@
+// AWS Sdk dependency is required for the below AWS lambda function
+// The below AWS Lambda function returns the userDetails of the users which are present in userDetailQdp table
+
 import AWS from 'aws-sdk';
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 const cognito = new AWS.CognitoIdentityServiceProvider();
 
 const TABLE_NAME = 'userDetailQdp';
-const USER_POOL_ID = 'USER_POOL_ID_FROM_COGNITO';
+const USER_POOL_ID = 'us-east-1_POOL_ID';
 
 export const handler = async (event) => {
+  console.log('event is:')
+  console.log(event);
   const email = event.params.querystring.email
+
   try{
      const cognitoParams = {
             UserPoolId: USER_POOL_ID,
             Filter: `email = "${email}"`
         };
         
+     // Checking if the provided userId is present in the Cognito user pool    
      const cognitoResponse = await cognito.listUsers(cognitoParams).promise();
       if (cognitoResponse.Users.length === 0) {
+          // If the user is not found then return error with 404 status code
             return {
                 statusCode: 404,
                 body: JSON.stringify({ message: "No user found in Cognito for the specified email." })
             };
         }
-      const userId = cognitoResponse.Users[0].Username;  // Cognito's unique user ID
       
+      // Cognito's unique user ID    
+      const userId = cognitoResponse.Users[0].Username;  
+      
+      // Preparing the query
       const dynamoParams = {
             TableName: TABLE_NAME,
             Key: { userId },
-            ProjectionExpression: 'userId,allowedProcessing,email,registeredOn,securityQuestion'
+            ProjectionExpression: 'userId,allowedProcessing,email,registeredOn,securityQuestion' // Only these selected attributes will be returned
         };
       
       const data = await dynamoDb.get(dynamoParams).promise();
+      
+      // If no data is found then return error with status code 404
       if (!data.Item) {
             return {
                 statusCode: 404,
@@ -36,12 +49,14 @@ export const handler = async (event) => {
             };
         }
 
+      // If data present then return the required details 
         return {
             statusCode: 200,
             body: JSON.stringify({ record: data.Item })
         };
         
   }catch(error){
+    // If any error  
     return {
             statusCode: 500,
             body: JSON.stringify({

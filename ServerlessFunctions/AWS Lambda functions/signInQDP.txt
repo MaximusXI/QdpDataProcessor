@@ -1,3 +1,4 @@
+# Below AWS Lambda function authenticates the user and issues the required JWT tokens along with the group in which the user belongs
 import json
 import boto3
 from botocore.exceptions import ClientError
@@ -5,8 +6,9 @@ from botocore.exceptions import ClientError
 # Initialize Cognito client
 cognito = boto3.client('cognito-idp')
 
-#Cognito User Pool details
-CLIENT_ID = 'APP_CLIENT_FROM_AWS_COGNITO'  # app client ID
+# Cognito User Pool details
+# The application client ID
+CLIENT_ID = 'CLIENT_ID'  
 
 def lambda_handler(event, context):
     try:
@@ -29,15 +31,16 @@ def lambda_handler(event, context):
         access_token = response['AuthenticationResult']['AccessToken']
         refresh_token = response['AuthenticationResult']['RefreshToken']
         
+        # Fetching the groups in which the user belongs in Cognito user pool
         groups_response = cognito.admin_list_groups_for_user(
-            UserPoolId='THE_USER_POOL_ID_FROM_COGNITO',
+            UserPoolId='us-east-1_POOL_ID',
             Username=username
         )
         
-        #Below to return all the groups for a user 
+        #Note: - Just for the reference, use Below to return all the groups for a user 
         #groups = [group['GroupName'] for group in groups_response['Groups']]
         
-        #But We allow only only one role for the user so only returning the 1st entry
+        #But We allow only only one role for the user so only returning the 1st entry, This is a requirement
         first_group = groups_response['Groups'][0]['GroupName'] if groups_response['Groups'] else None
     
         return {

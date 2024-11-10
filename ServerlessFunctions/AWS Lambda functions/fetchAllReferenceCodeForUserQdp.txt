@@ -1,20 +1,29 @@
+// AWS Sdk,jsonwebtoken dependencies are required for the below AWS lambda function
+// The below AWS lambda function fetches all the support requests for a user whether an agent or an registered user
+
 import AWS from 'aws-sdk';
 import jwt from 'jsonwebtoken'
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 export const handler = async (event) => {
+  
+  console.log('event is');
+  console.log(event);
   const authHeader = event.params.header.Authorization;
+  
   const decodedToken = jwt.decode(authHeader);
+  // The user for whom all the support request are rqeuired
   const senderEmail = decodedToken.email;
   
+   // Preparing the query to fetch the records for a user in supportQueries table
    const params = {
     TableName: 'supportQueries',
-    IndexName: 'senderId-index',  // Use the GSI on userId
+    IndexName: 'senderId-index',  // Using the GSI on userId
     KeyConditionExpression: 'senderId = :senderIdVal',
     ExpressionAttributeValues: {
       ':senderIdVal': senderEmail,
     },
-    ProjectionExpression: 'referenceCode',  // Retrieve only the referenceCode field
+    ProjectionExpression: 'referenceCode',  // Retrieve only the referenceCode field using projection
   };
   
   try {
@@ -27,8 +36,10 @@ export const handler = async (event) => {
       };
     }
 
-    // Use a Set to get unique reference codes
+    // Use a Set to get unique reference codes as this table holds complete conversations between the user's so there will be multiple entries for a reference code
     const uniqueReferenceCodes = [...new Set(data.Items.map(item => item.referenceCode))];
+    console.log('The unique reference codes are:');
+    console.log(uniqueReferenceCodes);
     return {
       statusCode: 200,
       body: JSON.stringify(uniqueReferenceCodes),

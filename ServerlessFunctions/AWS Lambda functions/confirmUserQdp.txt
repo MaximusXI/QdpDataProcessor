@@ -1,3 +1,4 @@
+# The below funtion handles the sign-up confirmation code handling 
 import json
 import boto3
 from botocore.exceptions import ClientError
@@ -6,15 +7,21 @@ from botocore.exceptions import ClientError
 cognito = boto3.client('cognito-idp')
 
 #Cognito User Pool details
-CLIENT_ID = 'CLIENT_ID_GOES_HERE'
+CLIENT_ID = 'CLIENT_ID'
 
 
 def lambda_handler(event, context):
-    # TODO implement
     try:
-        # Get the confirmation code and username from the event
+
+        print("Printing the complete Event:")
+        print(event)
+        
+        # Fetching the confirmation code from the request body
         confirmation_code = event.get('body-json').get('confirmation_code')
+        # Fetching the email from the request body
         email = event.get('body-json').get('email')
+        
+        # Calling the helper method
         user = find_user_by_email(email)
         if not user:
             return {
@@ -26,12 +33,16 @@ def lambda_handler(event, context):
 
         # Extract the username from the found user
         username = user['Username']
+        print('Found Username:', username)
+        
         # Confirm the user's sign-up using the code
         response = cognito.confirm_sign_up(
             ClientId=CLIENT_ID,
             Username=username,
             ConfirmationCode=confirmation_code
         )
+        print("Printing the response:")
+        print(response)
         return {
             'statusCode': 200,
             'body': json.dumps({
@@ -50,14 +61,16 @@ def lambda_handler(event, context):
             })
         }
         
-        
+# The helper method to fetch the user details for a given mail from Cognito user pool        
 def find_user_by_email(email):
     """Search for a user by their email address."""
     try:
         response = cognito.list_users(
-            UserPoolId="us-east-1_afnCFtddL",
+            UserPoolId="us-east-1_POOL_ID",
             Filter=f'email = "{email}"'
         )
+        print('Users in the pool are:')
+        print(response)
         users = response.get('Users', [])
         if users:
             return users[0]  # Return the first matching user
