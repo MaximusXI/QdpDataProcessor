@@ -1,6 +1,11 @@
 # QdpDataProcessor
 ## Overview
-This project project focuses on developing a secure, scalable, and efficient serverless architecture for user authentication and real-time message passing chatbot type Support using AWS and GCP services.
+This project focuses on developing a secure, scalable, and efficient serverless architecture for user authentication and real-time message passing chatbot type support using AWS and GCP services. It is based on architecture built using multi-cloud integration of AWS and GCP serverless solutions. The React.js is used as Frontend to provide the sealess user interaction. 
+
+## The outcome of this project are:- 
+- a strong learning on how to setup the complete authentication flow using cloud provider without managing any infrastructure usign just managed services
+- setting up a synchonous ticketing system for user support that is fully scalable with the serverless offering, distributed between AWS and GCP cloud.
+
 ## 🛠️ Modules
 ### 1. User Management & Authentication
 
