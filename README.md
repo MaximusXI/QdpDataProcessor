@@ -14,18 +14,11 @@ Multi-Factor Authentication (MFA): Includes security questions and math-based va
 
 Token-Based Authentication: Uses JWT tokens for session management.
 
-Technologies Used
+- **Technologies Used**: AWS Cognito, AWS Lambda, AWS DynamoDB, GCP Functions
 
-AWS Cognito
-
-AWS Lambda
-
-AWS DynamoDB
 
 Authentication Flow
-
-
-
+![User Authentication Flow](images/authFlow.png)
 User provides credentials.
 
 Security question verification.
@@ -46,19 +39,12 @@ Real-Time Messaging: Uses AWS WebSocket API and DynamoDB Streams.
 
 Agent Assignment: GCP function assigns available agents.
 
-Technologies Used
+- **Technologies Used**: AWS DynamoDB, AWS WebSocket API, AWS Lambda, GCP Functions
 
-AWS DynamoDB
 
-AWS WebSocket API
 
-AWS Lambda
-
-GCP Functions
 
 Message Flow
-
-
 
 User creates a support ticket (stored in DynamoDB).
 
