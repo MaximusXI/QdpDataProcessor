@@ -18,14 +18,17 @@ Token-Based Authentication: Uses JWT tokens for session management.
 
 
 Authentication Flow
+
 ![User Authentication Flow](images/authFlow.png)
-User provides credentials.
 
-Security question verification.
 
-Math expression validation.
+- User provides credentials.
 
-If all checks pass, Cognito issues a JWT token.
+- Security question verification.
+
+- Math expression validation.
+
+- If all checks pass, Cognito issues a JWT token.
 
 ### 2. Message Passing
 
@@ -45,6 +48,8 @@ Agent Assignment: GCP function assigns available agents.
 
 
 Message Flow
+
+![Message Support System Flow](images/supportSystemFlow.png)
 
 User creates a support ticket (stored in DynamoDB).
 
