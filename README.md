@@ -51,11 +51,11 @@ Message Flow
 
 ![Message Support System Flow](images/supportSystemFlow.png)
 
-User creates a support ticket (stored in DynamoDB).
+- User creates a support ticket (stored in DynamoDB).
 
-GCP function assigns an agent and sends an auto-reply.
+- GCP function assigns an agent and sends an auto-reply.
 
-Users and agents exchange messages in real-time using WebSockets.
+- Users and agents exchange messages in real-time using WebSockets.
 
 ![Sequence Flow](images/sequenceDiagramSupportSystem.png)
 
