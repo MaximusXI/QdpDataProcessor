@@ -1,6 +1,6 @@
 # QdpDataProcessor
 ## Overview
-This project project focuses on developing a secure, scalable, and efficient serverless architecture for user authentication and real-time message passing using AWS and GCP services.
+This project project focuses on developing a secure, scalable, and efficient serverless architecture for user authentication and real-time message passing chatbot type Support using AWS and GCP services.
 ## 🛠️ Modules
 ### 1. User Management & Authentication
 
@@ -56,4 +56,6 @@ User creates a support ticket (stored in DynamoDB).
 GCP function assigns an agent and sends an auto-reply.
 
 Users and agents exchange messages in real-time using WebSockets.
+
+![Sequence Flow](images/sequenceDiagramSupportSystem.png)
 
